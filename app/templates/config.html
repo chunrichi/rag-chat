@@ -90,6 +90,36 @@
                         </div>
                     </div>
 
+                    <!-- Ragflow配置 -->
+                    <div class="mb-4">
+                        <h5>Ragflow配置</h5>
+                        <hr>
+                        
+                        <div class="mb-3">
+                            <label for="ragflowUrl" class="form-label">Ragflow URL</label>
+                            <input type="text" class="form-control" id="ragflowUrl" name="ragflow_url" value="{{ config.ragflow_url }}">
+                            <div class="form-text">Ragflow服务器的地址</div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="ragflowApiKey" class="form-label">Ragflow API Key</label>
+                            <input type="password" class="form-control" id="ragflowApiKey" name="ragflow_api_key" value="{{ config.ragflow_api_key }}">
+                            <div class="form-text">访问Ragflow API的密钥</div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="ragflowDatasetId" class="form-label">Ragflow数据集ID</label>
+                            <input type="number" class="form-control" id="ragflowDatasetId" name="ragflow_dataset_id" value="{{ config.ragflow_dataset_id if config.ragflow_dataset_id else '' }}">
+                            <div class="form-text">用于存储工单数据的Ragflow数据集ID</div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="ragflowUploadTimeout" class="form-label">上传超时时间 (秒)</label>
+                            <input type="number" class="form-control" id="ragflowUploadTimeout" name="ragflow_upload_timeout" value="{{ config.ragflow_upload_timeout }}">
+                            <div class="form-text">文件上传到Ragflow的超时时间</div>
+                        </div>
+                    </div>
+
                     <div class="d-grid gap-2">
                         <button type="submit" class="btn btn-primary">保存配置</button>
                         <button type="button" class="btn btn-secondary" id="resetBtn">重置为默认值</button>

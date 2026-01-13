@@ -2,10 +2,11 @@ fastapi
 uvicorn
 python-dotenv
 jinja2
-pywin32
+# pywin32 - Windows only, commented out for cross-platform testing
 pillow
 requests
 pydantic
+pydantic-settings
 python-multipart
 transformers
 numpy

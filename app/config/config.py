@@ -1,4 +1,4 @@
-from pydantic import BaseSettings
+from pydantic_settings import BaseSettings
 import os
 from typing import Optional
 
@@ -30,6 +30,12 @@ class Settings(BaseSettings):
     log_level: str = "INFO"
     log_file: Optional[str] = None
     
+    # Ragflow配置
+    ragflow_url: str = "http://localhost:9380"
+    ragflow_api_key: str = ""
+    ragflow_dataset_id: Optional[int] = None
+    ragflow_upload_timeout: int = 300
+    
     class Config:
         env_file = ".env"
         env_file_encoding = "utf-8"
@@ -53,5 +59,9 @@ default_settings = {
     "web_host": "0.0.0.0",
     "web_port": 8000,
     "log_level": "INFO",
-    "log_file": None
+    "log_file": None,
+    "ragflow_url": "http://localhost:9380",
+    "ragflow_api_key": "",
+    "ragflow_dataset_id": None,
+    "ragflow_upload_timeout": 300
 }

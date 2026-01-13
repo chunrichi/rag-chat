@@ -28,6 +28,9 @@
                     <li class="nav-item">
                         <a class="nav-link {% if request.url.path == '/status' %}active{% endif %}" href="{{ url_for('status_page') }}">状态</a>
                     </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.url.path == '/ragflow' %}active{% endif %}" href="{{ url_for('ragflow_page') }}">Ragflow查询</a>
+                    </li>
                 </ul>
             </div>
         </div>

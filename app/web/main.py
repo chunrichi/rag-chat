@@ -1,18 +1,22 @@
 from fastapi import FastAPI, Request, Form, HTTPException
 from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, FileResponse
 import os
 import logging
 import asyncio
 from datetime import datetime
 
 # 添加配置管理模块导入
-from app.config.settings import load_config, update_config, reset_config
+from app.config.settings import load_config, update_config, reset_config, init_config, get_config_value
 
 # 添加同步模块导入
 from app.sync.master_sync import MasterSync
 from app.sync.slave_sync import SlaveSync
+from app.sync.ragflow_client import RagflowClient
+
+# 添加Outlook模块导入
+from app.outlook.outlook_reader import OutlookReader
 
 # 初始化同步管理器
 sync_data_dir = os.path.join(os.path.expanduser("~"), "outlook_tickets", "sync_data")
@@ -78,6 +82,14 @@ async def status_page(request: Request):
         {"request": request, "app_state": app_state}
     )
 
+# Ragflow查询页面路由
+@app.get("/ragflow", response_class=HTMLResponse)
+async def ragflow_page(request: Request):
+    return templates.TemplateResponse(
+        "ragflow.html", 
+        {"request": request}
+    )
+
 # API: 获取应用状态
 @app.get("/api/status")
 async def get_status():
@@ -94,7 +106,6 @@ async def update_status(request: Request):
 @app.get("/api/test-outlook")
 async def test_outlook():
     try:
-        from app.outlook.outlook_reader import OutlookReader
         reader = OutlookReader()
         success = reader.connect()
         if success:
@@ -235,10 +246,122 @@ async def get_sync_report():
     report = master_sync.generate_sync_report()
     return JSONResponse(content=report)
 
+# Ragflow相关API端点
+
+# API: 测试Ragflow连接
+@app.get("/api/ragflow/test")
+async def test_ragflow():
+    config = load_config()
+    ragflow_url = config.get("ragflow_url", "")
+    ragflow_api_key = config.get("ragflow_api_key", "")
+    
+    if not ragflow_url or not ragflow_api_key:
+        return JSONResponse(content={"success": False, "message": "Ragflow URL或API Key未配置"})
+    
+    client = RagflowClient(ragflow_url, ragflow_api_key)
+    success = client.test_connection()
+    
+    if success:
+        return JSONResponse(content={"success": True, "message": "Ragflow连接测试成功"})
+    else:
+        return JSONResponse(content={"success": False, "message": "Ragflow连接测试失败"})
+
+# API: 上传文件到Ragflow
+@app.post("/api/ragflow/upload")
+async def upload_to_ragflow(request: Request):
+    try:
+        data = await request.json()
+        file_paths = data.get("file_paths", [])
+        
+        if not file_paths:
+            return JSONResponse(content={"success": False, "message": "没有提供要上传的文件路径"})
+        
+        config = load_config()
+        ragflow_url = config.get("ragflow_url", "")
+        ragflow_api_key = config.get("ragflow_api_key", "")
+        ragflow_dataset_id = config.get("ragflow_dataset_id")
+        
+        if not ragflow_url or not ragflow_api_key:
+            return JSONResponse(content={"success": False, "message": "Ragflow URL或API Key未配置"})
+        
+        if not ragflow_dataset_id:
+            return JSONResponse(content={"success": False, "message": "Ragflow数据集ID未配置"})
+        
+        client = RagflowClient(ragflow_url, ragflow_api_key, ragflow_dataset_id)
+        results = client.upload_files(file_paths)
+        
+        return JSONResponse(content={
+            "success": True,
+            "message": f"成功上传 {len([r for r in results if r['result'].get('status', '') != 'error'])} 个文件",
+            "results": results
+        })
+    except Exception as e:
+        logger.error(f"上传文件到Ragflow失败: {str(e)}")
+        return JSONResponse(content={"success": False, "message": f"上传失败: {str(e)}"})
+
+# API: 向Ragflow查询
+@app.post("/api/ragflow/query")
+async def query_ragflow(request: Request):
+    try:
+        data = await request.json()
+        question = data.get("question", "")
+        top_k = data.get("top_k", 3)
+        
+        if not question:
+            return JSONResponse(content={"success": False, "message": "没有提供查询问题"})
+        
+        config = load_config()
+        ragflow_url = config.get("ragflow_url", "")
+        ragflow_api_key = config.get("ragflow_api_key", "")
+        ragflow_dataset_id = config.get("ragflow_dataset_id")
+        
+        if not ragflow_url or not ragflow_api_key:
+            return JSONResponse(content={"success": False, "message": "Ragflow URL或API Key未配置"})
+        
+        if not ragflow_dataset_id:
+            return JSONResponse(content={"success": False, "message": "Ragflow数据集ID未配置"})
+        
+        client = RagflowClient(ragflow_url, ragflow_api_key, ragflow_dataset_id)
+        result = client.query(question, top_k=top_k)
+        
+        return JSONResponse(content={"success": True, "result": result})
+    except Exception as e:
+        logger.error(f"向Ragflow查询失败: {str(e)}")
+        return JSONResponse(content={"success": False, "message": f"查询失败: {str(e)}"})
+
+# API: 获取Ragflow数据集列表
+@app.get("/api/ragflow/datasets")
+async def get_ragflow_datasets():
+    config = load_config()
+    ragflow_url = config.get("ragflow_url", "")
+    ragflow_api_key = config.get("ragflow_api_key", "")
+    
+    if not ragflow_url or not ragflow_api_key:
+        return JSONResponse(content={"success": False, "message": "Ragflow URL或API Key未配置"})
+    
+    client = RagflowClient(ragflow_url, ragflow_api_key)
+    datasets = client.get_datasets()
+    
+    return JSONResponse(content={"success": True, "datasets": datasets})
+
+# API: 获取图片文件
+@app.get("/api/images/{file_path:path}")
+async def get_image(file_path: str):
+    # 获取配置中的输出目录
+    config = load_config()
+    output_dir = config.get("output_directory", os.path.join(os.path.expanduser("~"), "outlook_tickets"))
+    
+    # 构建完整的图片路径
+    image_path = os.path.join(output_dir, file_path)
+    
+    if os.path.exists(image_path) and os.path.isfile(image_path):
+        return FileResponse(image_path)
+    else:
+        raise HTTPException(status_code=404, detail="图片文件未找到")
+
 # 运行应用
 if __name__ == "__main__":
     import uvicorn
-    from app.config.settings import init_config, get_config_value
     
     # 初始化配置
     init_config()

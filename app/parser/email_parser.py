@@ -66,6 +66,35 @@ class EmailParser:
         if not os.path.exists(ticket_dir):
             os.makedirs(ticket_dir)
         
+        # 创建附件目录
+        attachments_dir = os.path.join(ticket_dir, "attachments")
+        if not os.path.exists(attachments_dir):
+            os.makedirs(attachments_dir)
+        
+        # 移动附件到工单目录并更新附件路径
+        saved_attachments = []
+        if parsed_data["attachments"]:
+            for attachment_path in parsed_data["attachments"]:
+                try:
+                    filename = os.path.basename(attachment_path)
+                    new_path = os.path.join(attachments_dir, filename)
+                    os.rename(attachment_path, new_path)
+                    logger.info(f"移动附件: {attachment_path} → {new_path}")
+                    
+                    # 保存相对路径以便在HTML中使用
+                    relative_path = os.path.relpath(new_path, output_dir)
+                    saved_attachments.append({
+                        "original_path": attachment_path,
+                        "saved_path": new_path,
+                        "relative_path": relative_path,
+                        "is_image": self._is_image_file(new_path)
+                    })
+                except Exception as e:
+                    logger.error(f"移动附件失败 {attachment_path}: {str(e)}")
+        
+        # 更新解析数据中的附件信息
+        parsed_data["attachments"] = saved_attachments
+        
         # 保存邮件内容为JSON
         email_json_path = os.path.join(ticket_dir, "email_data.json")
         with open(email_json_path, "w", encoding="utf-8") as f:
@@ -82,20 +111,10 @@ class EmailParser:
             with open(email_html_path, "w", encoding="utf-8") as f:
                 f.write(parsed_data["email"]["html_body"])
         
-        # 移动附件到工单目录
-        if parsed_data["attachments"]:
-            attachments_dir = os.path.join(ticket_dir, "attachments")
-            if not os.path.exists(attachments_dir):
-                os.makedirs(attachments_dir)
-            
-            for attachment_path in parsed_data["attachments"]:
-                try:
-                    filename = os.path.basename(attachment_path)
-                    new_path = os.path.join(attachments_dir, filename)
-                    os.rename(attachment_path, new_path)
-                    logger.info(f"移动附件: {attachment_path} → {new_path}")
-                except Exception as e:
-                    logger.error(f"移动附件失败 {attachment_path}: {str(e)}")
+        # 保存附件列表
+        attachments_list_path = os.path.join(ticket_dir, "attachments.json")
+        with open(attachments_list_path, "w", encoding="utf-8") as f:
+            json.dump(saved_attachments, f, ensure_ascii=False, indent=2)
         
         logger.info(f"工单数据已保存到: {ticket_dir}")
         return ticket_dir

@@ -1,0 +1,230 @@
+{% extends "base.html" %}
+
+{% block title %}Ragflow查询 - Outlook工单管理系统{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-10 offset-md-1">
+        <!-- 查询输入区域 -->
+        <div class="card mb-4">
+            <div class="card-header bg-primary text-white">
+                Ragflow查询
+            </div>
+            <div class="card-body">
+                <form id="queryForm">
+                    <div class="mb-3">
+                        <label for="question" class="form-label">查询问题</label>
+                        <textarea class="form-control" id="question" name="question" rows="3" placeholder="请输入您的问题..."></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label for="topK" class="form-label">返回结果数量</label>
+                        <select class="form-select" id="topK" name="top_k">
+                            <option value="3">3</option>
+                            <option value="5">5</option>
+                            <option value="10">10</option>
+                        </select>
+                    </div>
+                    <div class="d-grid gap-2">
+                        <button type="submit" class="btn btn-primary" id="queryBtn">
+                            <span class="spinner-border spinner-border-sm" id="querySpinner" style="display: none;"></span>
+                            提交查询
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- 查询结果区域 -->
+        <div class="card" id="resultsCard" style="display: none;">
+            <div class="card-header bg-secondary text-white">
+                查询结果
+            </div>
+            <div class="card-body">
+                <div id="resultsContent">
+                    <!-- 结果内容将通过JavaScript动态加载 -->
+                </div>
+            </div>
+        </div>
+
+        <!-- 上传状态区域 -->
+        <div class="card" id="uploadStatusCard" style="display: none;">
+            <div class="card-header bg-info text-white">
+                上传状态
+            </div>
+            <div class="card-body">
+                <div id="uploadStatusContent">
+                    <!-- 上传状态将通过JavaScript动态加载 -->
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // 查询表单提交
+    document.getElementById('queryForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        
+        const question = document.getElementById('question').value;
+        const topK = document.getElementById('topK').value;
+        const queryBtn = document.getElementById('queryBtn');
+        const querySpinner = document.getElementById('querySpinner');
+        const resultsCard = document.getElementById('resultsCard');
+        const resultsContent = document.getElementById('resultsContent');
+        
+        if (!question.trim()) {
+            alert('请输入查询问题');
+            return;
+        }
+        
+        // 显示加载状态
+        querySpinner.style.display = 'inline-block';
+        queryBtn.disabled = true;
+        
+        try {
+            // 发送查询请求
+            const response = await fetch('/api/ragflow/query', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    question: question,
+                    top_k: parseInt(topK)
+                })
+            });
+            
+            const result = await response.json();
+            
+            if (result.success) {
+                // 显示结果
+                resultsCard.style.display = 'block';
+                renderResults(result.result);
+            } else {
+                alert(`查询失败: ${result.message}`);
+            }
+        } catch (error) {
+            console.error('查询出错:', error);
+            alert('查询过程中发生错误');
+        } finally {
+            // 隐藏加载状态
+            querySpinner.style.display = 'none';
+            queryBtn.disabled = false;
+        }
+    });
+    
+    // 渲染查询结果
+    function renderResults(data) {
+        const resultsContent = document.getElementById('resultsContent');
+        
+        // 检查是否有回答
+        if (data.choices && data.choices.length > 0) {
+            const answer = data.choices[0].message.content;
+            
+            // 渲染回答
+            let html = `
+                <div class="mb-4">
+                    <h5>回答:</h5>
+                    <div class="bg-light p-3 rounded">
+                        ${renderContentWithImages(answer)}
+                    </div>
+                </div>
+            `;
+            
+            // 渲染引用的文档
+            if (data.choices[0].context && data.choices[0].context.documents) {
+                html += `
+                    <div class="mt-4">
+                        <h5>引用文档:</h5>
+                        <div class="accordion" id="documentsAccordion">
+                `;
+                
+                data.choices[0].context.documents.forEach((doc, index) => {
+                    html += `
+                        <div class="accordion-item">
+                            <h2 class="accordion-header" id="heading${index}">
+                                <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#collapse${index}" aria-expanded="false" aria-controls="collapse${index}">
+                                    文档 ${index + 1}: ${doc.metadata.filename || '未知文件名'}
+                                </button>
+                            </h2>
+                            <div id="collapse${index}" class="accordion-collapse collapse" aria-labelledby="heading${index}" data-bs-parent="#documentsAccordion">
+                                <div class="accordion-body">
+                                    <div class="mb-2">
+                                        <strong>相似度:</strong> ${((doc.score || 0) * 100).toFixed(2)}%
+                                    </div>
+                                    <div class="mb-2">
+                                        <strong>内容:</strong>
+                                        <div class="bg-light p-2 rounded mt-1">
+                                            ${renderContentWithImages(doc.content)}
+                                        </div>
+                                    </div>
+                                    ${doc.metadata.page_number ? `<div><strong>页码:</strong> ${doc.metadata.page_number}</div>` : ''}
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                });
+                
+                html += `
+                        </div>
+                    </div>
+                `;
+            }
+            
+            resultsContent.innerHTML = html;
+        } else {
+            resultsContent.innerHTML = `
+                <div class="alert alert-info">
+                    没有找到相关结果
+                </div>
+            `;
+        }
+    }
+    
+    // 渲染包含图片的内容
+    function renderContentWithImages(content) {
+        // 替换图片路径为图片标签
+        // 1. 替换 [图片: path/to/image.jpg] 格式
+        content = content.replace(/\[图片: ([^\]]+)\]/g, (match, imagePath) => {
+            // 确保图片路径正确
+            let imgSrc = imagePath;
+            if (!imgSrc.startsWith('http') && !imgSrc.startsWith('/')) {
+                imgSrc = `/static/images/${imgSrc}`;
+            }
+            return `<img src="${imgSrc}" class="img-fluid mt-2 mb-2" alt="查询结果图片">`;
+        });
+        
+        // 2. 替换Markdown格式的图片
+        content = content.replace(/!\[([^\]]*)\]\(([^)]+)\)/g, (match, alt, imagePath) => {
+            let imgSrc = imagePath;
+            if (!imgSrc.startsWith('http') && !imgSrc.startsWith('/')) {
+                imgSrc = `/static/images/${imgSrc}`;
+            }
+            return `<img src="${imgSrc}" class="img-fluid mt-2 mb-2" alt="${alt}">`;
+        });
+        
+        return content;
+    }
+    
+    // 测试Ragflow连接
+    async function testRagflowConnection() {
+        try {
+            const response = await fetch('/api/ragflow/test');
+            const result = await response.json();
+            
+            if (!result.success) {
+                alert(`Ragflow连接失败: ${result.message}\n请检查配置页面中的Ragflow设置`);
+            }
+        } catch (error) {
+            console.error('测试Ragflow连接失败:', error);
+        }
+    }
+    
+    // 页面加载完成后测试Ragflow连接
+    document.addEventListener('DOMContentLoaded', () => {
+        testRagflowConnection();
+    });
+</script>
+{% endblock %}
