@@ -1,0 +1,156 @@
+{% extends "base.html" %}
+
+{% block title %}首页 - Outlook工单管理系统{% endblock %}
+
+{% block content %}
+<div class="row">
+    <!-- 应用状态卡片 -->
+    <div class="col-md-6">
+        <div class="card mb-4">
+            <div class="card-header bg-primary text-white">
+                应用状态
+            </div>
+            <div class="card-body">
+                <div class="row mb-3">
+                    <div class="col-6">
+                        <strong>运行模式:</strong> {{ app_state.current_mode }}
+                    </div>
+                    <div class="col-6">
+                        <strong>运行状态:</strong> 
+                        <span class="badge {% if app_state.is_running %}bg-success{% else %}bg-danger{% endif %}">
+                            {% if app_state.is_running %}运行中{% else %}已停止{% endif %}
+                        </span>
+                    </div>
+                </div>
+                <div class="row mb-3">
+                    <div class="col-6">
+                        <strong>处理工单总数:</strong> {{ app_state.total_tickets_processed }}
+                    </div>
+                    <div class="col-6">
+                        <strong>上次同步时间:</strong> 
+                        {% if app_state.last_sync_time %}
+                            {{ app_state.last_sync_time }}
+                        {% else %}
+                            从未同步
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 快速操作卡片 -->
+        <div class="card mb-4">
+            <div class="card-header bg-secondary text-white">
+                快速操作
+            </div>
+            <div class="card-body">
+                <div class="d-grid gap-2">
+                    <button class="btn btn-primary" id="startBtn">
+                        {% if app_state.is_running %}停止服务{% else %}启动服务{% endif %}
+                    </button>
+                    <button class="btn btn-success" id="processEmailsBtn">手动处理邮件</button>
+                    <button class="btn btn-info" id="testOutlookBtn">测试Outlook连接</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 功能介绍卡片 -->
+    <div class="col-md-6">
+        <div class="card mb-4">
+            <div class="card-header bg-primary text-white">
+                功能介绍
+            </div>
+            <div class="card-body">
+                <ul class="list-group list-group-flush">
+                    <li class="list-group-item">
+                        <strong>Outlook邮件读取</strong>
+                        <p class="mb-0 mt-1">自动读取Outlook中的工单邮件，支持按主题关键词过滤</p>
+                    </li>
+                    <li class="list-group-item">
+                        <strong>邮件内容解析</strong>
+                        <p class="mb-0 mt-1">提取工单编号、客户信息、问题描述等关键信息</p>
+                    </li>
+                    <li class="list-group-item">
+                        <strong>附件处理</strong>
+                        <p class="mb-0 mt-1">保存邮件附件，包括图片和文档</p>
+                    </li>
+                    <li class="list-group-item">
+                        <strong>图片预处理</strong>
+                        <p class="mb-0 mt-1">压缩图片、提取特征，为向量数据库做准备</p>
+                    </li>
+                    <li class="list-group-item">
+                        <strong>主从同步</strong>
+                        <p class="mb-0 mt-1">支持多台电脑间的工单信息同步</p>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // 启动/停止服务
+    document.getElementById('startBtn').addEventListener('click', async () => {
+        const btn = document.getElementById('startBtn');
+        const currentStatus = {{ app_state.is_running|tojson }};
+        
+        try {
+            const response = await fetch('/api/status', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ is_running: !currentStatus })
+            });
+            
+            if (response.ok) {
+                location.reload();
+            } else {
+                alert('操作失败');
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            alert('操作失败');
+        }
+    });
+
+    // 手动处理邮件
+    document.getElementById('processEmailsBtn').addEventListener('click', async () => {
+        try {
+            const response = await fetch('/api/process-emails', {
+                method: 'POST'
+            });
+            
+            const data = await response.json();
+            if (data.success) {
+                alert('邮件处理已开始');
+            } else {
+                alert(`处理失败: ${data.message}`);
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            alert('处理失败');
+        }
+    });
+
+    // 测试Outlook连接
+    document.getElementById('testOutlookBtn').addEventListener('click', async () => {
+        try {
+            const response = await fetch('/api/test-outlook');
+            const data = await response.json();
+            
+            if (data.success) {
+                alert('Outlook连接测试成功');
+            } else {
+                alert(`测试失败: ${data.message}`);
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            alert('测试失败');
+        }
+    });
+</script>
+{% endblock %}

@@ -1,0 +1,58 @@
+/* 自定义样式 */
+body {
+    background-color: #f5f5f5;
+}
+
+/* 卡片样式 */
+.card {
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+    border-radius: 8px;
+}
+
+/* 日志样式 */
+.log-entry {
+    margin-bottom: 5px;
+    padding: 3px 5px;
+    border-radius: 4px;
+}
+
+.log-time {
+    color: #6c757d;
+    font-size: 0.85rem;
+    margin-right: 10px;
+}
+
+.log-level {
+    font-weight: bold;
+    margin-right: 10px;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 0.8rem;
+}
+
+.log-level.info {
+    background-color: #d1ecf1;
+    color: #0c5460;
+}
+
+.log-level.warning {
+    background-color: #fff3cd;
+    color: #856404;
+}
+
+.log-level.error {
+    background-color: #f8d7da;
+    color: #721c24;
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+    .card {
+        margin-bottom: 1rem;
+    }
+    
+    .log-time {
+        display: block;
+        margin-bottom: 2px;
+    }
+}

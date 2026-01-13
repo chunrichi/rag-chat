@@ -1,0 +1,149 @@
+{% extends "base.html" %}
+
+{% block title %}配置 - Outlook工单管理系统{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-8 offset-md-2">
+        <div class="card">
+            <div class="card-header bg-primary text-white">
+                系统配置
+            </div>
+            <div class="card-body">
+                <form id="configForm">
+                    <!-- Outlook配置 -->
+                    <div class="mb-4">
+                        <h5>Outlook配置</h5>
+                        <hr>
+                        
+                        <div class="mb-3">
+                            <label for="outlookFolder" class="form-label">监控文件夹</label>
+                            <input type="text" class="form-control" id="outlookFolder" name="outlook_folder" value="{{ config.outlook_folder }}">
+                            <div class="form-text">Outlook中用于监控工单邮件的文件夹路径</div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="subjectKeyword" class="form-label">主题关键词</label>
+                            <input type="text" class="form-control" id="subjectKeyword" name="subject_keyword" value="{{ config.subject_keyword }}">
+                            <div class="form-text">用于识别工单邮件的主题关键词</div>
+                        </div>
+                    </div>
+
+                    <!-- 存储配置 -->
+                    <div class="mb-4">
+                        <h5>存储配置</h5>
+                        <hr>
+                        
+                        <div class="mb-3">
+                            <label for="outputDirectory" class="form-label">输出目录</label>
+                            <input type="text" class="form-control" id="outputDirectory" name="output_directory" value="{{ config.output_directory }}">
+                            <div class="form-text">工单邮件和附件的存储目录</div>
+                        </div>
+                    </div>
+
+                    <!-- 同步配置 -->
+                    <div class="mb-4">
+                        <h5>同步配置</h5>
+                        <hr>
+                        
+                        <div class="mb-3">
+                            <label for="masterIp" class="form-label">主服务器IP</label>
+                            <input type="text" class="form-control" id="masterIp" name="master_ip" value="{{ config.master_ip }}">
+                            <div class="form-text">主应用程序所在电脑的IP地址</div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="masterPort" class="form-label">主服务器端口</label>
+                            <input type="number" class="form-control" id="masterPort" name="master_port" value="{{ config.master_port }}">
+                            <div class="form-text">主应用程序的端口号</div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="syncInterval" class="form-label">同步间隔 (秒)</label>
+                            <input type="number" class="form-control" id="syncInterval" name="sync_interval" value="{{ config.sync_interval }}">
+                            <div class="form-text">从服务器向主服务器同步数据的间隔时间</div>
+                        </div>
+                    </div>
+
+                    <!-- 应用模式 -->
+                    <div class="mb-4">
+                        <h5>应用模式</h5>
+                        <hr>
+                        
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="app_mode" id="modeStandalone" value="standalone" checked>
+                            <label class="form-check-label" for="modeStandalone">
+                                独立模式
+                            </label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="app_mode" id="modeMaster" value="master">
+                            <label class="form-check-label" for="modeMaster">
+                                主服务器模式
+                            </label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="app_mode" id="modeSlave" value="slave">
+                            <label class="form-check-label" for="modeSlave">
+                                从服务器模式
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="d-grid gap-2">
+                        <button type="submit" class="btn btn-primary">保存配置</button>
+                        <button type="button" class="btn btn-secondary" id="resetBtn">重置为默认值</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.getElementById('configForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        
+        const formData = new FormData(e.target);
+        const configData = Object.fromEntries(formData.entries());
+        
+        // 转换数字类型的配置
+        configData.master_port = parseInt(configData.master_port);
+        configData.sync_interval = parseInt(configData.sync_interval);
+        
+        try {
+            const response = await fetch('/api/config', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(configData)
+            });
+            
+            const data = await response.json();
+            if (data.success) {
+                alert('配置保存成功');
+            } else {
+                alert(`保存失败: ${data.message}`);
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            alert('保存失败');
+        }
+    });
+
+    document.getElementById('resetBtn').addEventListener('click', () => {
+        if (confirm('确定要重置为默认配置吗？')) {
+            document.getElementById('outlookFolder').value = '收件箱';
+            document.getElementById('subjectKeyword').value = '工单';
+            document.getElementById('outputDirectory').value = '/tmp/tickets';
+            document.getElementById('masterIp').value = '192.168.1.100';
+            document.getElementById('masterPort').value = 8000;
+            document.getElementById('syncInterval').value = 300;
+            document.getElementById('modeStandalone').checked = true;
+        }
+    });
+</script>
+{% endblock %}

@@ -1,0 +1,139 @@
+{% extends "base.html" %}
+
+{% block title %}状态 - Outlook工单管理系统{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-8 offset-md-2">
+        <div class="card mb-4">
+            <div class="card-header bg-primary text-white">
+                系统状态
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-striped">
+                        <tbody>
+                            <tr>
+                                <th scope="row">运行模式</th>
+                                <td>{{ app_state.current_mode }}</td>
+                            </tr>
+                            <tr>
+                                <th scope="row">运行状态</th>
+                                <td>
+                                    <span class="badge {% if app_state.is_running %}bg-success{% else %}bg-danger{% endif %}">
+                                        {% if app_state.is_running %}运行中{% else %}已停止{% endif %}
+                                    </span>
+                                </td>
+                            </tr>
+                            <tr>
+                                <th scope="row">处理工单总数</th>
+                                <td>{{ app_state.total_tickets_processed }}</td>
+                            </tr>
+                            <tr>
+                                <th scope="row">上次同步时间</th>
+                                <td>
+                                    {% if app_state.last_sync_time %}
+                                        {{ app_state.last_sync_time }}
+                                    {% else %}
+                                        从未同步
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            <tr>
+                                <th scope="row">当前时间</th>
+                                <td id="currentTime"></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- 系统日志 -->
+        <div class="card">
+            <div class="card-header bg-secondary text-white">
+                系统日志
+            </div>
+            <div class="card-body">
+                <div class="form-group mb-3">
+                    <select class="form-control" id="logLevel">
+                        <option value="all">所有日志</option>
+                        <option value="info">信息</option>
+                        <option value="warning">警告</option>
+                        <option value="error">错误</option>
+                    </select>
+                </div>
+                <div class="log-container" id="logContainer" style="height: 300px; overflow-y: auto; border: 1px solid #ddd; padding: 10px; background-color: #f8f9fa;">
+                    <!-- 日志内容将通过JavaScript动态加载 -->
+                    <div class="log-entry">
+                        <span class="log-time">2023-10-01 14:30:00</span>
+                        <span class="log-level info">[INFO]</span>
+                        <span class="log-message">系统启动成功</span>
+                    </div>
+                    <div class="log-entry">
+                        <span class="log-time">2023-10-01 14:30:30</span>
+                        <span class="log-level info">[INFO]</span>
+                        <span class="log-message">成功连接到Outlook</span>
+                    </div>
+                    <div class="log-entry">
+                        <span class="log-time">2023-10-01 14:31:00</span>
+                        <span class="log-level info">[INFO]</span>
+                        <span class="log-message">处理了3封工单邮件</span>
+                    </div>
+                </div>
+                <div class="mt-3 text-end">
+                    <button class="btn btn-sm btn-primary" id="clearLogBtn">清空日志</button>
+                    <button class="btn btn-sm btn-secondary" id="refreshLogBtn">刷新日志</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // 更新当前时间
+    function updateCurrentTime() {
+        const now = new Date();
+        const timeString = now.toLocaleString('zh-CN');
+        document.getElementById('currentTime').textContent = timeString;
+    }
+    
+    // 每秒更新时间
+    setInterval(updateCurrentTime, 1000);
+    updateCurrentTime();
+
+    // 刷新日志
+    document.getElementById('refreshLogBtn').addEventListener('click', () => {
+        // 这里将实现日志刷新功能
+        alert('日志刷新功能待实现');
+    });
+
+    // 清空日志
+    document.getElementById('clearLogBtn').addEventListener('click', () => {
+        if (confirm('确定要清空日志吗？')) {
+            document.getElementById('logContainer').innerHTML = '';
+        }
+    });
+
+    // 日志级别过滤
+    document.getElementById('logLevel').addEventListener('change', (e) => {
+        const selectedLevel = e.target.value;
+        const logEntries = document.querySelectorAll('.log-entry');
+        
+        logEntries.forEach(entry => {
+            if (selectedLevel === 'all') {
+                entry.style.display = 'block';
+            } else {
+                const entryLevel = entry.querySelector('.log-level').classList[1];
+                if (entryLevel === selectedLevel) {
+                    entry.style.display = 'block';
+                } else {
+                    entry.style.display = 'none';
+                }
+            }
+        });
+    });
+</script>
+{% endblock %}
